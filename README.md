@@ -41,3 +41,22 @@ Everything is a single-band GeoTIFF on the same grid: UTM 19S (EPSG:32719), 10 m
 - `outputs/`: everything the pipeline writes and the web page reads
 
 Data folders and `outputs/` are not in git. Share rasters on a USB stick or shared drive.
+
+## Radar preprocessing (lane A)
+
+Raw RADARSAT-2 SLC scenes (XF0W3, HH, ascending, relative orbit 219) are turned into clean, aligned dB images.
+Raw zips stay in `data/raw/` and are never committed.
+
+```bash
+snap/run_scene.sh 20170215          # one scene: subset, calibrate, multilook 3x4, Refined Lee, terrain-correct (12 m, UTM 19S), dB
+.venv/bin/python scripts/align_stack.py   # put all scenes on one grid, check shift, write sigma0_*.tif + stack.json
+```
+
+- Needs ESA SNAP 14 (`~/esa-snap/bin/gpt`). Unzip a scene into `data/raw/unzipped/` first, and delete it once its output is checked.
+- Output: `data/processed/sigma0_YYYYMMDD.tif` (single band, float32, dB, NaN = no data), all on the same grid; `stack.json` lists the dates and grid.
+- The `.tif` files are **not in git** (RADARSAT-2 licence, public repo). Get them from the team's shared drive, or rebuild them with the two commands above from the raw zips.
+- Grid: EPSG:32719, 12 m, box W -70.15, S -13.07, E -69.85, N -12.80 (La Pampa). Note `tminus/config.py` still says 10 m and a different AOI.
+- Dates processed so far: 2017-02-15, 2021-08-29 (the only scenes covering the La Pampa box). Measured shift between them: 0.1 px.
+
+RADARSAT-2 Data and Products © Maxar Technologies Ltd. (2017, 2021) – All Rights Reserved.
+RADARSAT is an official mark of the Canadian Space Agency.
