@@ -1,0 +1,36 @@
+{
+  "dates": [
+    "20170215",
+    "20210829"
+  ],
+  "crs": "EPSG:32719",
+  "pixel_size_m": 12.0,
+  "width": 2723,
+  "height": 2500,
+  "origin_x": 375180.0,
+  "origin_y": 8584836.0,
+  "box_lonlat_WSEN": [
+    -70.15,
+    -13.07,
+    -69.85,
+    -12.8
+  ],
+  "measured_shift_px_row_col": {
+    "20170215": [
+      0.0,
+      0.0
+    ],
+    "20210829": [
+      0.10000000149011612,
+      0.10000000149011612
+    ]
+  },
+  "unit": "dB (sigma0)",
+  "nodata": "NaN",
+  "snap": {
+    "looks_range": 3,
+    "looks_azimuth": 4,
+    "speckle": "Refined Lee",
+    "dem": "Copernicus 30m Global DEM"
+  }
+}
