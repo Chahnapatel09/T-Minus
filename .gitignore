@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+# rasters and outputs are too big for git: share them on a USB stick / shared drive
+data/raw/*
+data/processed/*
+data/helpers/*
+outputs/*
+!**/.gitkeep
+*.aux.xml
+.streamlit/secrets.toml
