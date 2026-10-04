@@ -8,6 +8,7 @@ Writes outputs/
 import json
 
 import numpy as np
+import pandas as pd
 
 from . import accuracy, alerts, combine, crackdown, embed, labels, model, rio, rules, webout
 from . import config as C
@@ -112,12 +113,72 @@ def run():
         scores["eye_points_n"] = int(len(points))
 
     # 4. combine into confidence                         (lane B: combine)
-    conf = combine.confidence(rule_fired, model_fired)
+    # The model recognises mining land, old or new. Alerts are about change, so a model-only pixel
+    # counts only where the radar also changed a little (C.MODEL_CHANGE_DB) or is water now.
+    model_changed = model_fired & (((first - last) >= C.MODEL_CHANGE_DB) | (last < C.WATER_DB))
+    conf = combine.confidence(rule_fired, model_changed)
+
+    # Change detection graded on new mining only: Amazon Mining Watch years after the first scene.
+    # (Its first year, 2018, also holds everything mined before monitoring began, so it is left out.)
+    if "amw_year" in layers and held_out is not None:
+        amw = layers["amw_year"]
+        first_year = max(int(dates[0][:4]) + 1, int(amw[amw > 0].min()) + 1)
+        new = (amw >= first_year) & (amw <= int(dates[-1][:4]))
+        never = (amw == 0) | (amw > int(dates[-1][:4]))
+        where = held_out["mask"] & (new | never)
+        scores["new_mining"] = accuracy.evaluate(new, rule_fired, model_changed, where=where)
+        scores["new_mining_years"] = f"{first_year}-{dates[-1][:4]}"
+        _log("new mining %s: rule precision %.2f recall %.2f, combined precision %.2f recall %.2f" % (
+            scores["new_mining_years"], scores["new_mining"]["rule"]["precision"] or 0,
+            scores["new_mining"]["rule"]["recall"] or 0, scores["new_mining"]["combined"]["precision"] or 0,
+            scores["new_mining"]["combined"]["recall"] or 0))
+
+        # Every model side by side against Amazon Mining Watch, on the same held-out blocks.
+        outputs = {"Rule-based detector": rule_fired}
+        for name, (_, _, proba_v, _) in trained.items():
+            outputs[f"Random forest ({name})"] = proba_v >= C.PROB_THRESHOLD
+        outputs["Alerts map (rule + chosen random forest)"] = conf > 0
+        mined = (amw > 0) & (amw <= int(dates[-1][:4]))
+        ha = C.RES * C.RES / 10_000
+        rows = []
+        for name, fired in outputs.items():
+            all_sc = accuracy.score(held_out["truth"], fired, where=held_out["mask"])
+            new_sc = accuracy.score(new, fired, where=where)
+            rows.append({
+                "model": name,
+                "all_mining_precision": all_sc["precision"], "all_mining_recall": all_sc["recall"],
+                "new_mining_precision": new_sc["precision"], "new_mining_recall": new_sc["recall"],
+                "flagged_ha": round(float(fired.sum()) * ha),
+                "share_inside_amw_mines": round(float((fired & mined).sum()) / max(float(fired.sum()), 1), 3),
+            })
+        comp = pd.DataFrame(rows)
+        C.OUT.mkdir(parents=True, exist_ok=True)
+        comp.to_csv(C.OUT / "comparison_amw.csv", index=False)
+        scores["comparison"] = rows
+        _log("comparison with Amazon Mining Watch (held-out blocks):\n"
+             + comp.round(2).to_string(index=False))
+
+        # Every model at each point checked by eye (data/helpers/check_points.csv, from KMZ pins)
+        if points is not None and len(points):
+            from scipy import ndimage
+            r, c = points["row"].to_numpy(), points["col"].to_numpy()
+            res = points[["name", "lon", "lat", "mining"]].copy()
+            res["radar_db_" + dates[0]] = np.round(first[r, c], 1)
+            res["radar_db_" + dates[-1]] = np.round(last[r, c], 1)
+            for name, fired in outputs.items():
+                res[name] = (ndimage.maximum_filter(fired.astype("uint8"), size=3) > 0)[r, c]
+            res["Amazon Mining Watch year"] = amw[r, c].astype(int)
+            if "hansen_lossyear" in layers:
+                ly = layers["hansen_lossyear"][r, c].astype(int)
+                res["Hansen forest loss year"] = np.where(ly > 0, ly + 2000, 0)
+            res.to_csv(C.OUT / "check_points_result.csv", index=False)
+            _log("models at the points checked by eye:\n" + res.T.to_string(header=False))
 
     # 5. alert patches, priority, export files           (lane B: alerts)
     C.OUT.mkdir(parents=True, exist_ok=True)
     table = alerts.build(conf, change_idx, dates, first, last, layers, profile)
     alerts.export(table, C.OUT)
+    rio.write(C.OUT / "confidence.tif", conf, profile)   # 0 none, 1 medium, 2 high (for QGIS)
     _log(f"{len(table)} alerts")
 
     # 6. crackdown table                                 (lane B: crackdown)

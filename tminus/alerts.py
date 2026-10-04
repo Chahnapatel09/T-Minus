@@ -34,7 +34,13 @@ def build(conf, change_idx, dates, first, last, layers, profile):
     confidence, in_buffer, in_indigenous, dist_road_m, dist_river_m, priority, lon, lat, maps_url,
     growth (share of the patch first seen in the later half of the scenes).
     """
-    labels, n = ndimage.label(conf > 0, structure=np.ones((3, 3), dtype=int))
+    # drop radar speckle first: anything narrower than C.ALERT_MIN_WIDTH_PX pixels
+    flagged = conf > 0
+    if C.ALERT_MIN_WIDTH_PX > 1:
+        size = C.ALERT_MIN_WIDTH_PX
+        flagged = ndimage.binary_opening(flagged, structure=np.ones((size, size), dtype=bool))
+    conf = np.where(flagged, conf, 0)
+    labels, n = ndimage.label(flagged, structure=np.ones((3, 3), dtype=int))
     min_px = math.ceil(C.MIN_PATCH_HA * 10_000 / (C.RES * C.RES))
     sizes = np.bincount(labels.ravel(), minlength=n + 1)
     ids = np.flatnonzero(sizes >= min_px)

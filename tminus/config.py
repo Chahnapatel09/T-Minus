@@ -31,6 +31,7 @@ BLOCK_M = 2000
 TEST_FRACTION = 0.25
 MAX_SAMPLES_PER_CLASS = 50_000
 PROB_THRESHOLD = 0.5
+MODEL_CHANGE_DB = 1.5        # a model-only pixel needs at least this much darkening to make an alert
 SEED = 0
 
 HANSEN_FOREST_PCT = 30      # Hansen tree cover 2000 at or above this = forest
@@ -41,6 +42,7 @@ EMB_COMPONENTS = 4          # embedding-change directions kept as model features
 
 # --- alerts (lane B) ---
 MIN_PATCH_HA = 0.5
+ALERT_MIN_WIDTH_PX = 3       # remove specks narrower than this (pixels) before making patches
 POND_WATER_FRACTION = 0.5   # patch is a pond if this share of it is water now
 TAILINGS_DROP_DB = 5.0      # mean drop above this = bare sand / tailings, else fresh clearing
 PRIORITY_WEIGHTS = {"size": 30, "growth": 20, "protected": 25, "access": 15, "confidence": 10}

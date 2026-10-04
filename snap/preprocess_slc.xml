@@ -1,0 +1,86 @@
+<graph id="r2tf_preprocess">
+  <version>1.0</version>
+
+  <!-- 1. Open the raw scene (complex SLC, still in radar geometry) -->
+  <node id="Read">
+    <operator>Read</operator>
+    <parameters>
+      <file>${input}</file>
+    </parameters>
+  </node>
+
+  <!-- 2. Cut a small window around the area of interest so we never process the full 5 GB scene -->
+  <node id="Subset">
+    <operator>Subset</operator>
+    <sources><sourceProduct refid="Read"/></sources>
+    <parameters>
+      <geoRegion>${geoRegion}</geoRegion>
+      <subSamplingX>1</subSamplingX>
+      <subSamplingY>1</subSamplingY>
+      <copyMetadata>true</copyMetadata>
+    </parameters>
+  </node>
+
+  <!-- 3. Calibrate: turn raw digital numbers into true radar brightness (sigma0, linear power) -->
+  <node id="Calibration">
+    <operator>Calibration</operator>
+    <sources><sourceProduct refid="Subset"/></sources>
+    <parameters>
+      <selectedPolarisations>HH</selectedPolarisations>
+      <outputSigmaBand>true</outputSigmaBand>
+      <outputImageInComplex>false</outputImageInComplex>
+      <outputImageScaleInDb>false</outputImageScaleInDb>
+    </parameters>
+  </node>
+
+  <!-- 4. Multilook: average neighbouring pixels (range x azimuth looks) to get roughly square ~12 m pixels and less speckle -->
+  <node id="Multilook">
+    <operator>Multilook</operator>
+    <sources><sourceProduct refid="Calibration"/></sources>
+    <parameters>
+      <nRgLooks>${rgLooks}</nRgLooks>
+      <nAzLooks>${azLooks}</nAzLooks>
+      <outputIntensity>true</outputIntensity>
+      <grSquarePixel>false</grSquarePixel>
+    </parameters>
+  </node>
+
+  <!-- 5. Speckle filter: smooth the grainy radar noise while keeping edges -->
+  <node id="Speckle-Filter">
+    <operator>Speckle-Filter</operator>
+    <sources><sourceProduct refid="Multilook"/></sources>
+    <parameters>
+      <filter>${specklefilter}</filter>
+    </parameters>
+  </node>
+
+  <!-- 6. Range-Doppler terrain correction: place pixels on the map using a DEM -->
+  <node id="Terrain-Correction">
+    <operator>Terrain-Correction</operator>
+    <sources><sourceProduct refid="Speckle-Filter"/></sources>
+    <parameters>
+      <demName>${dem}</demName>
+      <demResamplingMethod>BILINEAR_INTERPOLATION</demResamplingMethod>
+      <imgResamplingMethod>BILINEAR_INTERPOLATION</imgResamplingMethod>
+      <pixelSpacingInMeter>${pixel}</pixelSpacingInMeter>
+      <mapProjection>${crs}</mapProjection>
+      <nodataValueAtSea>false</nodataValueAtSea>
+      <saveSelectedSourceBand>true</saveSelectedSourceBand>
+    </parameters>
+  </node>
+
+  <!-- 7. Convert to decibels (dB = 10*log10) so values are easy to compare -->
+  <node id="LinearToFromdB">
+    <operator>LinearToFromdB</operator>
+    <sources><sourceProduct refid="Terrain-Correction"/></sources>
+  </node>
+
+  <node id="Write">
+    <operator>Write</operator>
+    <sources><sourceProduct refid="LinearToFromdB"/></sources>
+    <parameters>
+      <file>${output}</file>
+      <formatName>GeoTIFF</formatName>
+    </parameters>
+  </node>
+</graph>

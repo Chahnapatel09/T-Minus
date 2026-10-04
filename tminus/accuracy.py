@@ -53,7 +53,8 @@ def eye_points(profile):
     xs, ys = transform("EPSG:4326", profile["crs"], df["lon"].tolist(), df["lat"].tolist())
     rows, cols = rowcol(profile["transform"], xs, ys)
     out = pd.DataFrame({"row": np.asarray(rows), "col": np.asarray(cols),
-                        "mining": df["mining"].astype(int).astype(bool).to_numpy()})
+                        "mining": df["mining"].astype(int).astype(bool).to_numpy(),
+                        "name": df["name"] if "name" in df else "", "lon": df["lon"], "lat": df["lat"]})
     inside = (out.row >= 0) & (out.row < profile["height"]) & (out.col >= 0) & (out.col < profile["width"])
     return out[inside].reset_index(drop=True)
 

@@ -172,7 +172,11 @@ Screenshots for the first tab of the web page go in `app/assets/` as `sentinel2.
 
 ## How the preprocessing works
 
-SNAP is not needed. `tminus/slc.py` does the standard chain in Python:
+There are two routes to `data/processed/sigma0_YYYYMMDD.tif`. Either works; the pipeline does not care which made the files.
+
+### Option A: Python only (`tminus/slc.py`, no SNAP)
+
+`tminus/slc.py` does the standard chain in Python:
 
 1. Complex I/Q values to intensity, calibrated to sigma0 with the product's `lutSigma.xml` (DN^2 / A^2)
 2. Multilook, 3 azimuth x 2 range, about 9 x 8 m on the ground
@@ -182,6 +186,25 @@ SNAP is not needed. `tminus/slc.py` does the standard chain in Python:
 
 There is no elevation model, so slopes are not terrain corrected. That is fine on the flat forest around
 La Pampa, but the Andean foothills in the south-west corner of the images are distorted.
+
+### Option B: SNAP (best quality, terrain corrected)
+
+Raw RADARSAT-2 SLC scenes (XF0W3, HH, ascending, relative orbit 219) are turned into clean, aligned dB images.
+Raw zips stay in `data/raw/` and are never committed.
+
+```bash
+snap/run_scene.sh 20170215          # one scene: subset, calibrate, multilook 3x4, Refined Lee, terrain-correct (10 m, UTM 19S), dB
+.venv/bin/python scripts/align_stack.py   # put all scenes on one grid, check shift, write sigma0_*.tif + stack.json
+```
+
+- Needs ESA SNAP 14 (`~/esa-snap/bin/gpt`). Unzip a scene into `data/raw/unzipped/` first, and delete it once its output is checked.
+- Output: `data/processed/sigma0_YYYYMMDD.tif` (single band, float32, dB, NaN = no data), all on the same grid; `stack.json` lists the dates and grid.
+- The `.tif` files are **not in git** (RADARSAT-2 licence, public repo). Get them from the team's shared drive, or rebuild them with the two commands above from the raw zips.
+- Grid: taken from `tminus/config.py` (EPSG:32719, 10 m, AOI W -70.60, S -13.15, E -69.85, N -12.85), so the images need no resampling by the pipeline.
+- Dates processed so far: 2017-02-15, 2021-08-29 (the only scenes covering the La Pampa box). Measured shift between them: 0.1 px.
+
+RADARSAT-2 Data and Products © Maxar Technologies Ltd. (2017, 2021) – All Rights Reserved.
+RADARSAT is an official mark of the Canadian Space Agency.
 
 ## Commands
 

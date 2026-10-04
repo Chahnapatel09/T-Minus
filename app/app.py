@@ -247,6 +247,17 @@ with accuracy:
         else:
             st.info("The model was not trained (no labels: run `python -m tminus.labels`), "
                     "so there is no held-out score.")
+        if acc.get("comparison"):
+            st.subheader("Every model against Amazon Mining Watch")
+            st.write("Same held-out blocks for every model. **All mining**: does it find mining land "
+                     f"(old or new, by {acc['label_date'][:4]})? **New mining**: does it find mining that "
+                     f"appeared in {acc.get('new_mining_years', 'the period')}? **Inside AMW mines**: share "
+                     "of what it flags (whole area) that falls inside Amazon Mining Watch's mines.")
+            comp = pd.DataFrame(acc["comparison"]).set_index("model")
+            comp.columns = ["All mining: precision", "All mining: recall", "New mining: precision",
+                            "New mining: recall", "Flagged (ha)", "Inside AMW mines"]
+            st.dataframe(comp.style.format({c: "{:.1%}" for c in comp.columns if c != "Flagged (ha)"}
+                                           | {"Flagged (ha)": "{:,.0f}"}, na_rep="n/a"))
         if "eye_points" in acc:
             st.subheader("Points checked by eye")
             st.write(f"{acc['eye_points_n']} points checked by eye on the imagery.")
