@@ -1,0 +1,14 @@
+numpy==2.5.3
+scipy==1.18.1
+pandas==3.0.6
+rasterio==1.5.2
+shapely==2.1.2
+scikit-learn==1.9.1
+pillow==12.3.0
+streamlit==1.65.0
+folium==0.20.0
+streamlit-folium==0.27.4
+pyogrio==0.13.0
+torch==2.14.1
+torchvision==0.29.1
+scikit-image==0.26.0

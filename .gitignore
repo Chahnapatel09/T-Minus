@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+# rasters and outputs are too big for git: share them on a USB stick / shared drive
+data/raw/*
+data/processed/*
+# only the small grid description is tracked; every raster stays out of git (RADARSAT-2 licence)
+!data/processed/stack.json
+data/helpers/*
+outputs/*
+!**/.gitkeep
+*.aux.xml
+.streamlit/secrets.toml
