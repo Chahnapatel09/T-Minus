@@ -20,12 +20,33 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tminus import config as C  # noqa: E402
 from tminus import crackdown as crackdown_mod  # noqa: E402
+from tminus import rio  # noqa: E402
 
 ASSETS = Path(__file__).resolve().parent / "assets"
-NODATA_GREY = 30          # areas outside a scene, on the page
+PROMINENT_MIN_PX = 400    # smallest patch kept in the simplified overlay, in overlay-image pixels
 TYPES = {"pond": "pond", "bare sand / tailings": "bare", "fresh clearing": "clearing"}
 SCORE_NAMES = {"rule": "Rule only", "model": "Model only", "combined": "Either detector (all alerts)",
                "both": "Both agree (high confidence)"}
+
+
+def _prominent(path):
+    """The confidence overlay cut down to the changes that stand out: high confidence only,
+    where the detections are dense, in patches of PROMINENT_MIN_PX pixels or more. PNG data URI."""
+    from scipy import ndimage
+    from tminus import webout
+
+    rgba = np.asarray(Image.open(path).convert("RGBA"))
+    high = (rgba[..., 3] > 0) & (rgba[..., :3] == webout.HIGH_RGBA[:3]).all(axis=-1)
+    core = ndimage.uniform_filter(high.astype("float32"), 9) > 0.55
+    core = ndimage.binary_closing(core, np.ones((5, 5), dtype=bool))
+    labels, n = ndimage.label(core)
+    sizes = ndimage.sum(core, labels, range(1, n + 1))
+    keep = np.isin(labels, 1 + np.flatnonzero(sizes >= PROMINENT_MIN_PX))
+    out = np.zeros(rgba.shape, dtype="uint8")
+    out[keep] = (220, 20, 20, 190)
+    buf = io.BytesIO()
+    Image.fromarray(out, "RGBA").save(buf, "PNG", optimize=True)
+    return _uri(buf.getvalue(), "image/png")
 
 
 def out_dir():
@@ -37,7 +58,7 @@ def stamp(out=None):
     """Changes whenever the pipeline rewrites its results, so callers can cache build()."""
     out = Path(out or out_dir())
     files = [out / n for n in ("alerts.csv", "crackdown.csv", "crackdown_amw.csv", "accuracy.json")]
-    files += sorted((out / "web").glob("*")) + sorted(ASSETS.glob("*"))
+    files += sorted((out / "web").glob("*")) + sorted(ASSETS.glob("*")) + sorted(Path(C.HELPERS).glob("*.tif"))
     return tuple((str(p), p.stat().st_mtime) for p in files if p.exists())
 
 
@@ -57,14 +78,14 @@ def _uri(data, mime):
 
 
 def _scene(path):
-    """A scene PNG as (dB array with NaN where there is no data, JPEG data URI)."""
+    """A scene PNG as (dB array with NaN where there is no data, WebP data URI that keeps the gaps clear)."""
     rgba = np.asarray(Image.open(path).convert("RGBA"))
     grey, alpha = rgba[..., 0], rgba[..., 3]
     lo, hi = C.DB_STRETCH
     db = np.where(alpha > 0, lo + grey.astype("float32") / 255 * (hi - lo), np.nan)
     buf = io.BytesIO()
-    Image.fromarray(np.where(alpha > 0, grey, NODATA_GREY).astype("uint8"), "L").save(buf, "JPEG", quality=85)
-    return db, _uri(buf.getvalue(), "image/jpeg")
+    Image.fromarray(np.dstack([grey, grey, grey, alpha]), "RGBA").save(buf, "WEBP", quality=85)
+    return db, _uri(buf.getvalue(), "image/webp")
 
 
 def _sample(db, rows, cols):
@@ -122,7 +143,49 @@ def _accuracy(acc):
     return {"tables": tables, "comparison": comparison}
 
 
-def _crackdown(out):
+def _amw():
+    """Amazon Mining Watch on the grid (python -m tminus.labels), or None. Returns (array, profile)."""
+    path = Path(C.HELPERS) / "amw_year.tif"
+    if not path.exists():
+        return None
+    arr, profile = rio.read(path)
+    return np.nan_to_num(arr).astype("int32"), profile
+
+
+def _amw_at(amw, profile, lons, lats):
+    """The AMW year at each point (0 = not mapped as mining, or outside the grid)."""
+    from rasterio.transform import rowcol
+    from rasterio.warp import transform
+
+    xs, ys = transform("EPSG:4326", profile["crs"], list(lons), list(lats))
+    rows, cols = rowcol(profile["transform"], xs, ys)
+    rows, cols = np.asarray(rows), np.asarray(cols)
+    inside = (rows >= 0) & (rows < amw.shape[0]) & (cols >= 0) & (cols < amw.shape[1])
+    out = np.zeros(len(rows), dtype="int32")
+    out[inside] = amw[rows[inside], cols[inside]]
+    return out
+
+
+def _agreement(alerts, years, last_year, first_year):
+    """How many alerts land on mining that Amazon Mining Watch had mapped by the last scene."""
+    hit = (years > 0) & (years <= last_year)
+    old = hit & (years <= first_year)
+    area = alerts["area_ha"].to_numpy()
+
+    def part(label, mask):
+        return {"label": label, "alerts": int(mask.sum()), "ha": round(float(area[mask].sum()), 1)}
+
+    return {
+        "last_year": last_year,
+        "alerts": int(len(alerts)), "alerts_in": int(hit.sum()),
+        "ha": round(float(area.sum()), 1), "ha_in": round(float(area[hit].sum()), 1),
+        "parts": [part(f"In a mine mapped by {first_year} (that year or earlier)", old),
+                  part(f"In a mine first confirmed {first_year + 1} to {last_year}", hit & ~old),
+                  part(f"Not in a mine mapped by {last_year}", ~hit)],
+    }
+
+
+def _crackdown(out, amw=None):
     path = out / "crackdown.csv"
     if not path.exists():
         return None
@@ -130,11 +193,14 @@ def _crackdown(out):
     summ = crackdown_mod.summary(tbl)
     summary = {phase: {"inside": _clean(summ.loc[phase, "inside_ha_per_month"]),
                        "outside": _clean(summ.loc[phase, "outside_ha_per_month"])} for phase in ("before", "after")}
-    amw = None
+    # The pipeline writes this table when it has the labels; otherwise make it here from the same function.
+    a = None
     if (out / "crackdown_amw.csv").exists():
         a = pd.read_csv(out / "crackdown_amw.csv")
-        amw = [{"label": str(int(r.year)), "inside": float(r.inside_ha), "outside": float(r.outside_ha)}
-               for r in a.itertuples()] or None
+    elif amw is not None:
+        a = crackdown_mod.amw_table(amw[0], amw[1])
+    amw = [{"label": str(int(r.year)), "inside": float(r.inside_ha), "outside": float(r.outside_ha)}
+           for r in a.itertuples()] if a is not None and len(a) else None
     return {
         "event": "Operation Mercury", "date": _iso(C.CRACKDOWN), "unit": "ha per month",
         "rows": [{"start": r.start, "end": r.end, "phase": r.phase,
@@ -157,6 +223,8 @@ def build(out=None):
     (south, west), (north, east) = meta["bounds"]
 
     alerts = pd.read_csv(out / "alerts.csv")
+    amw = _amw()
+    amw_years = _amw_at(amw[0], amw[1], alerts["lon"], alerts["lat"]) if amw is not None and len(alerts) else None
     scenes, series, size = [], [], None
     for d in dates:
         db, uri = _scene(web / f"scene_{d}.png")
@@ -180,12 +248,26 @@ def build(out=None):
             "dist_river_m": rec["dist_river_m"], "priority": rec["priority"], "first_seen": rec["first_seen"],
             "lon": rec["lon"], "lat": rec["lat"], "series": [s[i] for s in series],
         })
+        if amw_years is not None:
+            recs[-1]["amw_year"] = int(amw_years[i])
 
     overlay = web / "confidence.png"
     optical = next((p for pat in ("sentinel2*.png", "sentinel2*.jpg", "optical*.png", "optical*.jpg")
                     for p in sorted(ASSETS.glob(pat))), None)
     acc_path = out / "accuracy.json"
     years = sorted({d[:4] for d in dates})
+    accuracy = _accuracy(json.loads(acc_path.read_text(encoding="utf8")) if acc_path.exists() else None)
+    if amw_years is not None and (amw[0] > 0).any():
+        accuracy["agreement"] = _agreement(alerts, amw_years, int(dates[-1][:4]), int(amw[0][amw[0] > 0].min()))
+    # Which context maps the run had. A flag that is False everywhere means the map was missing.
+    helper = lambda name: (Path(C.HELPERS) / f"{name}.tif").exists()  # noqa: E731
+    mapped = {
+        "buffer": bool(alerts["in_buffer"].any()) or helper("buffer"),
+        "indigenous": bool(alerts["in_indigenous"].any()) or helper("indigenous"),
+        "road": bool(alerts["dist_road_m"].notna().any()),
+        "river": bool(alerts["dist_river_m"].notna().any()),
+        "amw": amw_years is not None,
+    }
     return {
         "sample": False,
         "sensor": "RADARSAT-2 · sigma0 (dB)",
@@ -198,10 +280,15 @@ def build(out=None):
         "drop_db": C.DROP_DB,
         "scenes": scenes,
         "overlay": _uri(overlay.read_bytes(), "image/png") if overlay.exists() else None,
+        "overlay_main": _prominent(overlay) if overlay.exists() else None,
         "optical": _uri(optical.read_bytes(), "image/jpeg" if optical.suffix == ".jpg" else "image/png") if optical else None,
+        # optional app/assets/<image name>.json: date, bounds_WSEN and credit of the optical image
+        "optical_info": json.loads(optical.with_suffix(".json").read_text(encoding="utf8"))
+        if optical and optical.with_suffix(".json").exists() else None,
         "alerts": recs,
-        "crackdown": _crackdown(out),
-        "accuracy": _accuracy(json.loads(acc_path.read_text(encoding="utf8")) if acc_path.exists() else None),
+        "mapped": mapped,
+        "crackdown": _crackdown(out, amw),
+        "accuracy": accuracy,
     }
 
 

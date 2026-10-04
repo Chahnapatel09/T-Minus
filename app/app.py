@@ -40,7 +40,8 @@ st.set_page_config("T-Minus · Gold Mining Radar Monitor", layout="wide")
 # The page brings its own layout: drop Streamlit's chrome and let the frame fill the window.
 st.markdown(
     """<style>
-    header, footer, [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
+    header, footer, [data-testid="stToolbar"], [data-testid="stDecoration"],
+    [data-testid="stSkillsNudge"], [data-testid="stSkillsNudgeAnchor"] { display: none !important; }
     .stApp { background: #f3f4f6; }
     .stMainBlockContainer, .block-container { padding: 0 !important; max-width: 100% !important; }
     [data-testid="stMarkdownContainer"]:has(style) { display: none; }

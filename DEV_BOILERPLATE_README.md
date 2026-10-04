@@ -251,9 +251,9 @@ It opens http://localhost:8501 in your browser. Stop it with `Ctrl + C` in the t
 | Screen | What it shows |
 |---|---|
 | Landing page (the T-Minus logo) | Cloudy optical image next to the latest radar scene (add `app/assets/sentinel2.png`) |
-| Overview | Before/after radar map with a draggable divider, the ranked alert list, and the selected alert (priority, brightness in every scene, nearby alerts) |
-| Detections | Every alert as a card with Navigate and Mark checked, plus a map of them |
-| Analytics | Clearing inside vs outside La Pampa, before vs after Feb 2019, the Amazon Mining Watch check, and the accuracy scores for every model |
+| Overview | Side-by-side investigation: the alert list on the left; for the selected alert, the before and after radar images, area, priority, type and coordinates, then backscatter analysis, time series and nearby alerts |
+| Map | A real map (Satellite, Radar or Street view) with the alert points and the detected change on top, plus the alert list and the selected alert. Radar view has a draggable before/after divider. The basemap needs an internet connection |
+| Analytics | Clearing inside vs outside La Pampa, before vs after Feb 2019, the Amazon Mining Watch check, the accuracy scores for every model, and how many alerts land on mining that Amazon Mining Watch has mapped (needs `python -m tminus.labels`; the dashboard reads `data/helpers/amw_year.tif` itself, so this works without rerunning the pipeline) |
 | Reports | Download alerts as KML, GeoJSON or CSV |
 
 The Before and After pickers at the top choose which two scenes are compared; the alerts listed are the ones first seen between them.

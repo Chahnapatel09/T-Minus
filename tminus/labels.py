@@ -8,6 +8,7 @@ confirmed (2018 = already mined in 2018 or earlier; quarterly values such as 202
 AMW is mapped from optical Sentinel-2, so it is independent of the radar.
 Source: https://source.coop/earthgenome/amazon-mining-watch
 """
+import shutil
 import urllib.request
 from pathlib import Path
 
@@ -28,7 +29,10 @@ def download(force=False):
     dst.parent.mkdir(parents=True, exist_ok=True)
     print(f"[labels] downloading {AMW_URL}", flush=True)
     tmp = dst.with_suffix(".part")
-    urllib.request.urlretrieve(AMW_URL, tmp)
+    # the host answers 403 to Python's default User-Agent
+    req = urllib.request.Request(AMW_URL, headers={"User-Agent": "tminus-labels/1.0"})
+    with urllib.request.urlopen(req) as src, open(tmp, "wb") as out:
+        shutil.copyfileobj(src, out)
     tmp.replace(dst)
     return dst
 
