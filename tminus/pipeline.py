@@ -166,7 +166,7 @@ def run():
             res["radar_db_" + dates[0]] = np.round(first[r, c], 1)
             res["radar_db_" + dates[-1]] = np.round(last[r, c], 1)
             for name, fired in outputs.items():
-                res[name] = (ndimage.maximum_filter(fired.astype("uint8"), size=3) > 0)[r, c]
+                res[name] = (ndimage.maximum_filter(fired.astype("uint8"), size=2 * C.CHECK_POINT_RADIUS_PX + 1) > 0)[r, c]
             res["Amazon Mining Watch year"] = amw[r, c].astype(int)
             if "hansen_lossyear" in layers:
                 ly = layers["hansen_lossyear"][r, c].astype(int)
@@ -179,6 +179,8 @@ def run():
     table = alerts.build(conf, change_idx, dates, first, last, layers, profile)
     alerts.export(table, C.OUT)
     rio.write(C.OUT / "confidence.tif", conf, profile)   # 0 none, 1 medium, 2 high (for QGIS)
+    if held_out is not None:
+        rio.write(C.OUT / "model_proba.tif", proba.astype("float32"), profile)   # random forest, probability of mining
     _log(f"{len(table)} alerts")
 
     # 6. crackdown table                                 (lane B: crackdown)

@@ -34,6 +34,7 @@ PROB_THRESHOLD = 0.5
 MODEL_CHANGE_DB = 1.5        # a model-only pixel needs at least this much darkening to make an alert
 SEED = 0
 
+CHECK_POINT_RADIUS_PX = 5    # a detection this close (pixels) to a hand-checked point counts
 HANSEN_FOREST_PCT = 30      # Hansen tree cover 2000 at or above this = forest
 
 # --- foundation-model features (lane D, optional: python -m tminus.embed) ---

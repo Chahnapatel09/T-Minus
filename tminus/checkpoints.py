@@ -49,6 +49,8 @@ def build(paths=None):
     rows = [{"lon": lon, "lat": lat, "mining": _is_mining(name), "name": name, "source": Path(p).name}
             for p in paths for name, lon, lat in read(p)]
     df = pd.DataFrame(rows, columns=["lon", "lat", "mining", "name", "source"])
+    # the same pin saved in two files counts once
+    df = df.drop_duplicates(subset=["name", "lon", "lat"]).reset_index(drop=True)
     dst = C.HELPERS / "check_points.csv"
     dst.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(dst, index=False)
