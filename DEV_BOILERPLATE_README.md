@@ -248,16 +248,17 @@ streamlit run app/app.py
 
 It opens http://localhost:8501 in your browser. Stop it with `Ctrl + C` in the terminal.
 
-| Tab | What it shows |
+| Screen | What it shows |
 |---|---|
-| Why radar | Cloudy optical image next to radar (add `app/assets/sentinel2.png` and `app/assets/radar.png`) |
-| Change map | Before/after slider, map with alerts (red high, orange medium) |
-| Alerts | Ranked mining sites with filters and Google Maps buttons |
-| Did the crackdown work? | Clearing inside vs outside La Pampa, before vs after Feb 2019, plus the Amazon Mining Watch check |
-| Accuracy | Scores for every model, with vs without the foundation model, and the hand-checked points |
-| Export | Download alerts as KML, GeoJSON or CSV |
+| Landing page (the T-Minus logo) | Cloudy optical image next to the latest radar scene (add `app/assets/sentinel2.png`) |
+| Overview | Before/after radar map with a draggable divider, the ranked alert list, and the selected alert (priority, brightness in every scene, nearby alerts) |
+| Detections | Every alert as a card with Navigate and Mark checked, plus a map of them |
+| Analytics | Clearing inside vs outside La Pampa, before vs after Feb 2019, the Amazon Mining Watch check, and the accuracy scores for every model |
+| Reports | Download alerts as KML, GeoJSON or CSV |
 
-If it says "No results yet", run `python -m tminus.pipeline` first and reload.
+The Before and After pickers at the top choose which two scenes are compared; the alerts listed are the ones first seen between them.
+
+If it shows a "Sample data" badge, it found no results: run `python -m tminus.pipeline` first and reload.
 
 ---
 
@@ -342,8 +343,10 @@ All numbers live in `tminus/config.py`. Change them there, then rerun `python -m
 
 ```
 T-Minus/
-  app/app.py               the dashboard
-  app/assets/              screenshots for the first tab
+  app/app.py               the dashboard (Streamlit wrapper)
+  app/dashboard.py         gathers outputs/ into the data the dashboard shows
+  app/web/                 the dashboard itself: HTML, CSS, JS
+  app/assets/              sentinel2.png for the landing page
   data/raw/                downloads: radar zips, Hansen tiles, Amazon Mining Watch, .kmz pins   (not in git)
   data/processed/          sigma0_<date>.tif radar images, emb_<date>.npz, stack.json            (only stack.json in git)
   data/helpers/            helper maps on the grid: amw_year, hansen_*, check_points.csv         (not in git)
@@ -391,7 +394,7 @@ T-Minus/
 | `does not overlap the AOI` | That radar image is outside La Pampa. Use a different one |
 | Computer very slow or runs out of memory | Close other apps. The pipeline needs about 4 GB of free RAM |
 | `tminus.embed` takes very long | Normal on CPU (30 to 40 min per image). Let it finish; results are cached |
-| Dashboard says "No results yet" | Run `python -m tminus.pipeline`, then reload the page |
+| Dashboard shows a "Sample data" badge | It found no results. Run `python -m tminus.pipeline`, then reload the page |
 | Port 8501 already in use | `streamlit run app/app.py --server.port 8502` and open http://localhost:8502 |
 
 ---

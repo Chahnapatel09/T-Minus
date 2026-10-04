@@ -141,7 +141,7 @@ You can delete the zip, its unzipped `RS2_..._SLC` folder, or both. Keep the zip
 | `does not overlap the AOI` | That image is outside La Pampa. Use a different one. |
 | `pip install` fails on rasterio | Run `pip install --upgrade pip` and try again. Use Python 3.12. |
 | The Mac gets very slow during step 5 | Close other apps. It needs about 3 GB of free RAM. |
-| Web page says "No results yet" | Run `python -m tminus.pipeline` first, then reload the page. |
+| Web page shows a "Sample data" badge | It found no results in `outputs/`. Run `python -m tminus.pipeline` first, then reload the page. |
 
 ---
 
@@ -168,7 +168,7 @@ python -c "from tminus import preprocess; preprocess.dist('dist_road', 'data/raw
 
 Polygons and lines can be GeoJSON (in lon/lat) or anything else GDAL reads (shp, gpkg).
 `data/helpers/check_points.csv` (columns `lon,lat,mining`) holds points checked by eye, for the accuracy tab.
-Screenshots for the first tab of the web page go in `app/assets/` as `sentinel2.png` (cloudy optical) and `radar.png`.
+A cloudy Sentinel-2 screenshot for the landing page goes in `app/assets/` as `sentinel2.png`; the radar image beside it is the latest processed scene.
 
 ## How the preprocessing works
 
@@ -226,7 +226,7 @@ On Windows, activate with `.venv\Scripts\activate` instead of `source .venv/bin/
 |---|---|---|
 | A | `tminus/slc.py`, `tminus/preprocess.py`, `tminus/rio.py` | Raw images and helper maps onto the shared grid |
 | B | `tminus/rules.py`, `combine.py`, `alerts.py`, `crackdown.py` | Rule detector, confidence, alert patches, priority, crackdown table, exports |
-| C | `app/app.py`, `tminus/webout.py` | The web page and the PNG overlays it reads |
+| C | `app/app.py`, `app/dashboard.py`, `app/web/`, `tminus/webout.py` | The web page (plain HTML/CSS/JS in `app/web/`, served through Streamlit), the data it is given, and the PNG overlays it reads |
 | D | `tminus/model.py`, `labels.py`, `embed.py`, `accuracy.py` | Labels, foundation-model features, random forest, accuracy check |
 | all | `tminus/config.py` | Every threshold and the study area. Change numbers here, not in the code |
 | all | `tminus/pipeline.py` | Wires the lanes together |
@@ -240,7 +240,7 @@ Everything is a single-band GeoTIFF on the same grid: UTM 19S (EPSG:32719), 10 m
 - `data/helpers/<name>.tif`: helper maps on the grid, names listed in `tminus/config.py` (lane A)
 - `data/helpers/check_points.csv`: columns `lon,lat,mining`, the points checked by eye (lane D)
 - `app/assets/`: screenshots for the first screen (lane C)
-- `outputs/`: everything the pipeline writes and the web page reads
+- `outputs/`: everything the pipeline writes and the web page reads. To look at a copy of someone else's results without moving it, set `TMINUS_OUT` to that folder before `streamlit run`
 
 Data folders and `outputs/` are not in git. Share rasters on a USB stick or shared drive.
 To skip reprocessing on another computer, copy `data/processed/` across: those files are small (about 100 MB each).
