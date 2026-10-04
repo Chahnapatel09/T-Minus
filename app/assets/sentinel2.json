@@ -1,0 +1,11 @@
+{
+ "date": "2021-08-29",
+ "bounds_WSEN": [
+  -69.955,
+  -13.05998,
+  -69.85,
+  -12.972
+ ],
+ "source": "Sentinel-2A L2A true colour, tile 19LCF, https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/19/L/CF/2021/8/S2A_19LCF_20210829_0_L2A/TCI.tif",
+ "credit": "Contains modified Copernicus Sentinel data 2021"
+}
