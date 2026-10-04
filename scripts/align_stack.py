@@ -11,6 +11,7 @@ Writes  data/processed/sigma0_YYYYMMDD.tif (same grid for every date)
 import glob
 import json
 import re
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -22,15 +23,16 @@ from scipy.ndimage import shift as nd_shift
 from skimage.registration import phase_cross_correlation
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from tminus import config as C  # noqa: E402  (grid comes from the shared config)
+
 PROC = ROOT / "data" / "processed"
 QA = ROOT / "outputs" / "qa"
 
-# Final box (W, S, E, N) in lon/lat, grid in UTM 19S at 12 m. Change here, not below.
-BOX = (-70.15, -13.07, -69.85, -12.80)
-CRS = "EPSG:32719"
-RES = 12.0
+# Grid = the shared one in tminus/config.py (AOI as W, S, E, N in lon/lat; CRS; RES in metres)
+BOX, CRS, RES = C.AOI, C.CRS, float(C.RES)
 SHIFT_FIX_PX = 0.5      # correct a date if it is more than this many pixels off the reference
-DB_STRETCH = (-25.0, 0.0)
+DB_STRETCH = C.DB_STRETCH
 
 
 def grid():
