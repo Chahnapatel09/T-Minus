@@ -25,27 +25,43 @@ WATER_DB = -18.0
 
 # --- random forest (lane D) ---
 LABEL_DATE = "20191231"     # mining polygons are from 2019: train on the last scene up to here
-NEG_MIN_DIST_M = 1000
+NEG_MIN_DIST_M = 1000         # other clearings this far from mining count as "not mining"
+NEG_FOREST_MIN_DIST_M = 50    # stable forest this far from mining counts as "not mining"
 BLOCK_M = 2000
 TEST_FRACTION = 0.25
 MAX_SAMPLES_PER_CLASS = 50_000
 PROB_THRESHOLD = 0.5
+MODEL_CHANGE_DB = 1.5        # a model-only pixel needs at least this much darkening to make an alert
 SEED = 0
+
+HANSEN_FOREST_PCT = 30      # Hansen tree cover 2000 at or above this = forest
+
+# --- foundation-model features (lane D, optional: python -m tminus.embed) ---
+EMB_TILE_PX = 64            # 640 m tiles
+EMB_COMPONENTS = 4          # embedding-change directions kept as model features
 
 # --- alerts (lane B) ---
 MIN_PATCH_HA = 0.5
+ALERT_MIN_WIDTH_PX = 3       # remove specks narrower than this (pixels) before making patches
 POND_WATER_FRACTION = 0.5   # patch is a pond if this share of it is water now
 TAILINGS_DROP_DB = 5.0      # mean drop above this = bare sand / tailings, else fresh clearing
 PRIORITY_WEIGHTS = {"size": 30, "growth": 20, "protected": 25, "access": 15, "confidence": 10}
 ACCESS_MAX_M = 5000         # further than this from road and river scores 0 for access
+SIZE_FULL_HA = 10.0         # a patch this big (or bigger) gets the full size score
+HIGH_SHARE = 0.5            # patch is "high" confidence if this share of it is high
 
 # --- web (lane C) ---
 WEB_MAX_PX = 2000           # widest PNG sent to the browser
 DB_STRETCH = (-25.0, 0.0)
 
+HELPER_NAMES = ["worldcover", "mining2019", "hansen_lossyear", "slope", "buffer",
+                "indigenous", "dist_road", "dist_river", "la_pampa", "amw_year"]
+
 # Helper rasters, all optional except where noted. Missing ones are read as zeros.
 #   worldcover       ESA WorldCover class (10 forest, 80 water)
-#   mining2019       1 inside a Maus et al. mining polygon   (needed for the model)
+#   mining2019       1 inside a Maus et al. mining polygon   (model labels, if present)
+#   amw_year         Amazon Mining Watch: year mining was first confirmed, 0 = none
+#                    (model labels when mining2019 is missing; python -m tminus.labels)
 #   hansen_lossyear  0, or year minus 2000
 #   slope            degrees
 #   buffer           1 inside the Tambopata reserve or its buffer zone
