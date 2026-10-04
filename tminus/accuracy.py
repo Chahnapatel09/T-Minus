@@ -60,9 +60,10 @@ def eye_points(profile):
 
 
 def evaluate_points(points, rule_fired, model_fired):
-    """Same as evaluate, graded on the eye-checked points. A detection within 1 pixel counts."""
+    """Same as evaluate, graded on the eye-checked points. A detection within C.CHECK_POINT_RADIUS_PX
+    pixels counts (screenshot pins are placed to within a few tens of metres)."""
     def near(a):
-        return ndimage.maximum_filter(np.asarray(a).astype("uint8"), size=3) > 0
+        return ndimage.maximum_filter(np.asarray(a).astype("uint8"), size=2 * C.CHECK_POINT_RADIUS_PX + 1) > 0
 
     r, c = points["row"].to_numpy(), points["col"].to_numpy()
     return evaluate(points["mining"].to_numpy(), near(rule_fired)[r, c], near(model_fired)[r, c])
