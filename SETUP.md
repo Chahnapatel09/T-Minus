@@ -187,9 +187,6 @@ streamlit run app/app.py
 **After adding a new radar image:** run C, then E (and F), then reload the dashboard.
 **After changing a setting in `tminus/config.py`:** run E again.
 
-Without labels the pipeline still runs, with the rule detector only. Without embeddings it uses the
-radar-only model. Skipping step C is fine.
-
 ### What a good `pipeline` run prints
 
 ```
@@ -315,14 +312,6 @@ All in `outputs/` (not in git):
 
 ## 9. How the detectors work
 
-```
-Radar 2017 + Radar 2021
-   |
-   +--> 1. Rule-based detector --------------------------------+
-   |                                                            v
-   +--> 2. ResNet50 (pretrained, frozen) --> clues --> 3. Random forest --> Combine --> Alerts
-```
-
 **1. Rule-based detector** (`tminus/rules.py`, no training)
 A pixel is flagged if it was forest (brighter than -11 dB) and then got at least 3 dB darker or
 turned to water (below -18 dB). When a later image exists, it must stay that way on that image too.
@@ -340,17 +329,7 @@ clues; the better one is kept.
 **Combine:** both say mining = **high**, one says mining = **medium**. A model-only pixel needs at
 least 1.5 dB of darkening to count, because alerts are about **new** mining.
 
-**Results on the two main images (held-out areas, against Amazon Mining Watch):**
-
-| Model | Precision | Recall | New mining recall |
-|---|---|---|---|
-| Rule-based detector | 0.82 | 0.21 | 0.24 |
-| Random forest (radar only) | 0.49 | 0.71 | 0.60 |
-| **Random forest + ResNet** | **0.70** | **0.88** | **0.81** |
-| Alerts map | 0.75 | 0.38 | 0.40 |
-
-**Crackdown (Hansen timeline of model-detected mining):** La Pampa fell from 976 ha/year (2015 to
-2018) to 161 ha/year (2019 to 2021, -84%), while outside La Pampa rose from 1,201 to 1,346 ha/year.
+Scores and the crackdown comparison are in the README under [Results](README.md#results), and the reasoning behind these thresholds is under [Design decisions](README.md#design-decisions).
 
 ---
 
@@ -397,7 +376,7 @@ python -c "from tminus import preprocess; preprocess.dist('dist_road', 'data/raw
 
 Polygons and lines can be GeoJSON (in lon/lat) or anything else GDAL reads (shp, gpkg).
 `data/helpers/check_points.csv` (columns `lon,lat,mining`) holds points checked by eye, for the accuracy tab.
-A cloudy Sentinel-2 image for the landing page goes in `app/assets/` (`sentinel2.jpg` plus a `sentinel2.json` with its date, bounds and credit); the radar image beside it is the latest processed scene.
+The landing page image lives in `app/assets/` as `sentinel2.jpg`, with a `sentinel2.json` holding its date, bounds and credit.
 
 ---
 
